@@ -1,0 +1,327 @@
+# Único punto de configuración del pipeline.
+# Solo la sección `run` está pensada para cambiarse entre ejecuciones.
+run:
+  poststrat_source: epa
+  recent_studies: 1
+  inference: full
+  temporal:
+    unit: month
+    structure: none
+  vote_sampling:
+    adapt_delta: 0.9
+    max_treedepth: 10
+    chains: 4
+  calibration:
+    turnout: 0.72
+    recall: 0.6
+  national_calibration:
+    enabled: true
+    draws_path: data-raw/national-vote-draws.csv
+    strength: 0.3
+    otbl_strength: 1
+
+# Contratos internos. Cambiarlos equivale a cambiar el modelo o el esquema
+# de datos, no a parametrizar una ejecución ordinaria.
+domain:
+  reference_party: PSOE
+  unavailable_offset: -1000000
+  availability_tolerance: 0.0000000001
+  district_threshold: 0.03
+  expected_seats: 350
+  left_parties: [PSOE, Podemos, Sumar, UP]
+  right_parties: [PP, Vox, SALF, Cs, UPN]
+  vote_geography:
+    random_min_ccaa: 5
+    support_exclusions:
+      - {partido: PNV, ccaa: "15"}
+
+paths:
+  raw_root: data-raw
+  processed_root: data-processed
+  models_root: models
+  output_root: output
+
+schemas:
+  poststrat:
+    censo:
+      source: censo
+      column_map:
+        CPRO: provincia
+        SEXO: sexo_raw
+        VAREDAD: edad_raw
+        ESREAL_CNEDA: estudios_raw
+        RELA: sitlab_raw
+        PNACIO: nacio_raw
+        CMUN: cmun
+      filters:
+        nacio_include: ["108"]
+      sexo_recode:
+        "1": Hombre
+        "6": Mujer
+      estudios_recode:
+        "2": ["08"]
+        "3": ["09", "10", "11", "12"]
+        default: 1
+      sitlab_recode:
+        "1": ["1"]
+        "2": ["2"]
+        "3": ["7"]
+        "4": ["6"]
+        "5": ["4", "5"]
+        default: 99
+      sitlab2_recode:
+        "1": ["1", "2"]
+        "3": ["3"]
+        "2": ["5"]
+        "4": ["4"]
+        default: 5
+    epa:
+      source: epa
+      input_pattern: "sav$"
+      column_map:
+        CCAA: ccaa
+        PROV: provincia
+        SEXO1: sexo_raw
+        EDAD1: edad_raw
+        NFORMA: estudios_raw
+        NAC1: nacio_raw
+        SIDAC1: sidac_raw
+        SIDI1: sidi_raw
+        NBUSCA: nbusca_raw
+        FACTOREL: peso_raw
+      filters:
+        edad_exclude: ["00", "05", "10"]
+        nacio_include: ["1", "2"]
+      ccaa_recode:
+        "51": "18"
+        "52": "19"
+      sexo_recode:
+        "1": Hombre
+        "6": Mujer
+      estudios_recode:
+        "2": [SP]
+        "3": [SU]
+        default: 1
+  vote:
+    column_map:
+      genero: sexo
+      edad: edad
+      recuerdo: recuerdo
+      idv: idv
+      voto_simp: voto_aux
+      prob_voto: participa_raw
+      codigo_ccaa: ccaa
+      codigo_provincia: provincia
+      sitlab: sitlab_raw
+      estudios: estudios
+      tamuni: tamuni
+      peso: ponde
+    participation:
+      type: ordinal_scale
+      scale_min: 0
+      scale_max: 10
+    voto_levels:
+      [PP, PSOE, Vox, Podemos, Sumar, SALF, ERC, Junts,
+       EH_Bildu, PNV, BNG, UPN, CCa, OTBL, ABNL, "<18", Indecisos]
+    recuerdo_levels:
+      [PP, PSOE, Vox, Sumar, Nac_izq, Nac_der, OTBL, ABNL]
+    voto_recode:
+      remap:
+        PP: PP
+        PSOE: PSOE
+        Vox: Vox
+        SALF: SALF
+        Sumar: Sumar
+        Compromís: Sumar
+        Podemos: Podemos
+        ERC: ERC
+        Junts: Junts
+        CDC: Junts
+        PNV: PNV
+        Geroa Bai: PNV
+        GBai: PNV
+        GBAI: PNV
+        BNG: BNG
+        UPN: UPN
+        CCa: CCa
+        EH Bildu: EH_Bildu
+        IU: Sumar
+        MP: Sumar
+        CUP: ABNL
+        AC: ABNL
+        No votará: ABNL
+        Nulo: ABNL
+        "<18": "<18"
+        N.C.: Indecisos
+        No sabe: Indecisos
+        En blanco: OTBL
+      default: OTBL
+    recuerdo_recode:
+      remap:
+        PP: PP
+        PSOE: PSOE
+        Vox: Vox
+        Sumar: Sumar
+        ERC: Nac_izq
+        EH Bildu: Nac_izq
+        BNG: Nac_izq
+        PNV: Nac_der
+        Junts: Nac_der
+        CCa: Nac_der
+        UPN: Nac_der
+        No votó: ABNL
+        Nulo: ABNL
+        N.C.: ABNL
+        No sabe: ABNL
+        En blanco: OTBL
+        "<18": ABNL
+      default: OTBL
+    estudios_recode:
+      "3": [Superiores]
+      "2": [FP]
+      default: 1
+    sitlab_recode:
+      "1": [Trabaja]
+      "2": [En paro]
+      "3": [Estudiante]
+      "4": [Trabajo doméstico no remunerado]
+      "5": [Jubilado]
+      default: 99
+    sitlab2_recode:
+      "1": [Trabaja, En paro]
+      "3": [Estudiante]
+      "4": [Trabajo doméstico no remunerado]
+      "2": [Jubilado]
+      default: 5
+    tamuni_recode:
+      "1": [Menos de 2.000 habitantes]
+      "2": [2.001 a 10.000 habitantes]
+      "3":
+        [10.001 a 50.000 habitantes, 50.001 a 100.000 habitantes,
+         100.001 a 400.000 habitantes, 400.001 a 1.000.000 habitantes,
+         Más de 1.000.000 habitantes]
+      default: 3
+  previous:
+    # El estudio de recuerdo y participación productivo sigue siendo CIS 3420.
+    column_map:
+      SEXO: sexo
+      EDAD: edad
+      PROV: provincia
+      TAMUNI: tamuni
+      RECUERDO1: recuerdo
+      ESTUDIOS: estudios
+      SITLAB: sitlab_raw
+      PARTICIPACIONG1: participa_raw
+      PESO: ponde
+    recuerdo_filter: 9996
+    participation:
+      type: binary_codes
+      voted_codes: [1, 7]
+      nonvote_labels: [No votó, Nulo, N.C., No recuerda]
+    recuerdo_levels:
+      [PP, PSOE, Vox, Sumar, Nac_izq, Nac_der, OTBL, ABNL]
+    recuerdo_recode:
+      remap:
+        PP: PP
+        PSOE: PSOE
+        Sumar: Sumar
+        Podemos: Sumar
+        Unidas Podemos: Sumar
+        UP: Sumar
+        VOX: Vox
+        Vox: Vox
+        EH Bildu: Nac_izq
+        ERC: Nac_izq
+        BNG: Nac_izq
+        Junts: Nac_der
+        EAJ-PNV: Nac_der
+        PNV: Nac_der
+        CCa: Nac_der
+        UPN: Nac_der
+        Nulo: ABNL
+        No votó: ABNL
+        No recuerda: ABNL
+        N.C.: ABNL
+      default: OTBL
+    results_recode:
+      remap:
+        PP: PP
+        PSOE: PSOE
+        Vox: Vox
+        Sumar: Sumar
+        EH_Bildu: Nac_izq
+        ERC: Nac_izq
+        BNG: Nac_izq
+        Junts: Nac_der
+        EAJ-PNV: Nac_der
+        PNV: Nac_der
+        CCa: Nac_der
+        CCa-NCa: Nac_der
+        UPN: Nac_der
+        GBai: Nac_der
+        NA+: Nac_der
+      default: OTBL
+    estudios_recode:
+      "3": [Superiores]
+      "2": [Secundaria 2ª etapa, F.P.]
+      default: 1
+    sitlab2_recode:
+      "1": [1, 4, 5]
+      "2": [2, 3]
+      "3": [6]
+      "4": [7]
+      default: 5
+    tamuni_recode:
+      "2": [2, "2", 2.001 a 10.000 habitantes]
+      "3":
+        [3, 4, 5, 6, 7, "3", "4", "5", "6", "7",
+         10.001 a 50.000 habitantes, 50.001 a 100.000 habitantes,
+         100.001 a 400.000 habitantes, 400.001 a 1.000.000 habitantes,
+         Más de 1.000.000 habitantes]
+      default: 1
+
+backtests:
+  elections: ["2023", "2019-10N"]
+  bundles:
+    "2023":
+      root: validation-data/2023
+      previous: 3269.sav
+      turnout: cis-longitudinal-pre23J.parquet
+      vote: cis-longitudinal-pre23J.parquet
+      poststrat_source: censo
+      poststrat: CensoPersonas_2021.parquet
+      previous_results: resultados_cer_provincias.csv
+      target_results: resultados_cer_provincias_target.csv
+      candidates: candidaturas.csv
+      seats: nseats.xlsx
+      previous_schema: survey-spec-prev.yaml
+      turnout_schema: survey-spec-turnout.yaml
+      vote_schema: survey-spec-vote.yaml
+      fit_overrides:
+        - {provincia: "38", partido: Vox, se_presenta: true}
+    "2019-10N":
+      root: validation-data/2019-10N
+      previous: 3248.sav
+      turnout: 3248.sav
+      vote: cis-longitudinal-pre10N.parquet
+      poststrat_source: epa
+      poststrat: epa
+      previous_results: resultados_cer_provincias.csv
+      target_results: resultados_cer_provincias_target.csv
+      candidates: candidaturas.csv
+      seats: nseats.xlsx
+      previous_schema: survey-spec-prev.yaml
+      turnout_schema: survey-spec-prev.yaml
+      vote_schema: survey-spec-vote.yaml
+      fit_overrides: []
+  variants:
+    production:
+      weight_scheme: sample
+      geo_effect: ccaa
+    recency:
+      weight_scheme: sample_recency
+      recency_lambda: 0.35
+      geo_effect: ccaa
+    geography:
+      weight_scheme: sample
+      geo_effect: ccaa_provincia
